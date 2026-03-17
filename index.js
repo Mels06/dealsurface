@@ -4,9 +4,9 @@ const axios       = require('axios');
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const BOT_TOKEN       = process.env.BOT_TOKEN || '8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM';
 const URL_VERIFICATION = 'https://script.google.com/macros/s/AKfycbxMAqw97qww0rQXce-wn4RIvD30HgZSwHV_PpVJbnNeqecwQqcgjmSHCvNOz38-92mN/exec';
-const URL_SHEET       = process.env.APPS_SCRIPT_URL;
+const URL_SHEET       = process.env.APPS_SCRIPT_URL || 'https://script.google.com/a/macros/mohstechnologie.com/s/AKfycbzpxQertMqixHslEWAhu6QHMuuIobpgoBwDoBqQuaItjFKPWX-rQCO6kquxFFKaTMRD/exec';
 const SECRET          = process.env.SECRET || 'MOHS_SECRET_2024';
-const CLIENT_ID       = process.env.CLIENT_ID;
+const CLIENT_ID       = process.env.CLIENT_ID || 'MT-EPKGH';
 
 const MSG_EXPIRE =
   `❌ Votre abonnement n'est pas actif.\n\n` +
