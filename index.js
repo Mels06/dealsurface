@@ -6,10 +6,10 @@ const axios = require("axios");
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 const TOKEN = process.env.TELEGRAM_TOKEN || "8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM";
 const MOHS_SCRIPT_URL = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzrhPg2mTy37ljFqA-CdDg9oYk7j8SvM26iLSGJRo8s2Ed6Nu3cbyJf52cyRekl7myt/exec";
-const DEAL_SCRIPT_URL = process.env.DEAL_SCRIPT_URL; // "https://script.google.com/a/macros/mohstechnologie.com/s/AKfycbzKwGXsCSql9Jo3Qj99wjRcfCbbXWR9KPyiLPp78bR4V6a93H6EgbymqE0m2ReU39LM/exec"
+const DEAL_SCRIPT_URL = process.env.DEAL_SCRIPT_URL || "https://script.google.com/a/macros/mohstechnologie.com/s/AKfycbzKwGXsCSql9Jo3Qj99wjRcfCbbXWR9KPyiLPp78bR4V6a93H6EgbymqE0m2ReU39LM/exec";
 const CLIENT_ID = process.env.CLIENT_ID || "MT-EPKGH"; // ID abonnement MOHS du client
 const PORT = process.env.PORT || 3000;
-const WEBHOOK_URL = process.env.WEBHOOK_URL; // https://deal-surface.onrender.com
+const WEBHOOK_URL = process.env.WEBHOOK_URL; || "https://deal-surface.onrender.com";
 
 // ─── EXPRESS + BOT ─────────────────────────────────────────────────────────────
 const app = express();
