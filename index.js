@@ -1,8 +1,20 @@
+const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 
-// ⚠️ colle ton token DIRECTEMENT ici
-const TOKEN = "8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM";
+const app = express();
+const PORT = process.env.PORT || 3000;
 
+// serveur pour Render
+app.get('/', (req, res) => {
+  res.send("Bot is running 🚀");
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+// ton bot Telegram
+const TOKEN = "TON_TOKEN_ICI";
 const bot = new TelegramBot(TOKEN, { polling: true });
 
 bot.onText(/\/start/, (msg) => {
