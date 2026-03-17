@@ -1,36 +1,28 @@
-require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
-const axios = require('axios');
+const axios       = require('axios');
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const BOT_TOKEN = process.env.BOT_TOKEN;
-
-// URL 1 : Vérification abonnement — MOHS TECHNOLOGIE (fixe, ne pas changer)
+const BOT_TOKEN       = process.env.BOT_TOKEN;
 const URL_VERIFICATION = 'https://script.google.com/macros/s/AKfycbxMAqw97qww0rQXce-wn4RIvD30HgZSwHV_PpVJbnNeqecwQqcgjmSHCvNOz38-92mN/exec';
-
-// URL 2 : Votre propre Google Sheet (ventes, stock, CA...)
-const URL_SHEET = process.env.APPS_SCRIPT_URL || 'https://script.google.com/a/macros/mohstechnologie.com/s/AKfycbzpxQertMqixHslEWAhu6QHMuuIobpgoBwDoBqQuaItjFKPWX-rQCO6kquxFFKaTMRD/exec';
-const SECRET    = process.env.SECRET || 'MOHS_SECRET_2024';
-
-// ID client fourni par MOHS TECHNOLOGIE (format MT-XXXXX)
-const CLIENT_ID = process.env.CLIENT_ID || 'MT-EPKGH';
+const URL_SHEET       = process.env.APPS_SCRIPT_URL;
+const SECRET          = process.env.SECRET || 'MOHS_SECRET_2024';
+const CLIENT_ID       = process.env.CLIENT_ID;
 
 const MSG_EXPIRE =
   `❌ Votre abonnement n'est pas actif.\n\n` +
   `Veuillez contacter *MOHS TECHNOLOGIE* pour le renouveler :\n` +
   `📧 contact@mohstechnologie.com`;
 
-if (!BOT_TOKEN)  { console.error('❌ BOT_TOKEN manquant dans .env');       process.exit(1); }
-if (!URL_SHEET)  { console.error('❌ APPS_SCRIPT_URL manquant dans .env'); process.exit(1); }
-if (!CLIENT_ID)  { console.error('❌ CLIENT_ID manquant dans .env');       process.exit(1); }
+if (!BOT_TOKEN)  { console.error('❌ BOT_TOKEN manquant');       process.exit(1); }
+if (!URL_SHEET)  { console.error('❌ APPS_SCRIPT_URL manquant'); process.exit(1); }
+if (!CLIENT_ID)  { console.error('❌ CLIENT_ID manquant');       process.exit(1); }
 
 const bot      = new TelegramBot(BOT_TOKEN, { polling: true });
 const sessions = {};
 
 console.log('✅ Bot Client DEAL SURFACE démarré');
 
-// ─── APPEL SHEET CLIENT ───────────────────────────────────────────────────────
-// Toutes les opérations métier passent par URL_SHEET (votre sheet)
+// ─── APPELS HTTP ──────────────────────────────────────────────────────────────
 async function sheet(action, params = {}) {
   const res = await axios.post(URL_SHEET,
     { secret: SECRET, action, ...params },
@@ -40,34 +32,26 @@ async function sheet(action, params = {}) {
   return res.data;
 }
 
-// ─── VÉRIFICATION ABONNEMENT ─────────────────────────────────────────────────
-// Appel vers URL_VERIFICATION (différente de URL_SHEET)
-// RÈGLE ABSOLUE : appelée avant chaque réponse du bot
 async function verifierAbonnement() {
   try {
     const res = await axios.post(URL_VERIFICATION,
       { action: 'check_abonnement', id: CLIENT_ID },
       { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
     );
-    const statut = res.data?.statut;
-    // Seul ACTIF autorise l'accès
-    return statut === 'ACTIF';
+    return res.data?.statut === 'ACTIF';
   } catch (err) {
     console.error('[Vérification abonnement] Erreur:', err.message);
-    return false; // bloquer si l'URL ne répond pas
+    return false;
   }
 }
 
 // ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
-// Enveloppe chaque handler — si abonnement non ACTIF, on bloque tout
 async function garde(chatId, fn) {
   const actif = await verifierAbonnement();
-
   if (!actif) {
     await bot.sendMessage(chatId, MSG_EXPIRE, { parse_mode: 'Markdown' });
     return;
   }
-
   try {
     await fn();
   } catch (err) {
@@ -81,7 +65,7 @@ const formatDate    = d => d ? new Date(d).toLocaleDateString('fr-FR') : 'N/A';
 const formatMontant = m => (m || m === 0) ? Number(m).toLocaleString('fr-FR') + ' FCFA' : 'N/A';
 const aujourd_hui   = () => new Date().toISOString().split('T')[0];
 
-// ─── MENU PRINCIPAL ───────────────────────────────────────────────────────────
+// ─── MENU ─────────────────────────────────────────────────────────────────────
 const MENU = {
   reply_markup: {
     keyboard: [
@@ -222,7 +206,7 @@ bot.on('message', async msg => {
     const texte  = msg.text.trim();
     const chatId = msg.chat.id;
 
-    // ── Création produit ───────────────────────────────────────────────────────
+    // ── Création produit ──────────────────────────────────────────────────────
     if (session.etape === 'prod_nom') {
       session.data.nom  = texte;
       session.etape     = 'prod_prix';
@@ -247,7 +231,7 @@ bot.on('message', async msg => {
       session.data.quantite = qte;
       session.etape         = 'prod_carac';
       bot.sendMessage(chatId,
-        `✅ Quantité: *${qte}*\n\n_Étape 4/4_\n🔧 Caractéristiques ? _(ex: 256GB RAM 8GB)_\n_(Envoyez - pour ignorer)_`,
+        `✅ Quantité: *${qte}*\n\n_Étape 4/4_\n🔧 Caractéristiques ?\n_(ex: 256GB RAM 8GB — envoyez - pour ignorer)_`,
         { parse_mode: 'Markdown' }
       );
 
@@ -257,11 +241,11 @@ bot.on('message', async msg => {
       delete sessions[chatId];
       await sheet('AJOUTER_PRODUIT', { data: { ...d, alerte_min: 2 } });
       bot.sendMessage(chatId,
-        `✅ *Produit ajouté !*\n\n📦 *${d.nom}*\n💰 ${formatMontant(d.prix_vente)}\n🔢 Stock initial: ${d.quantite}`,
+        `✅ *Produit ajouté !*\n\n📦 *${d.nom}*\n💰 ${formatMontant(d.prix_vente)}\n🔢 Stock: ${d.quantite}`,
         { parse_mode: 'Markdown', ...MENU }
       );
 
-    // ── Vente ──────────────────────────────────────────────────────────────────
+    // ── Vente ─────────────────────────────────────────────────────────────────
     } else if (session.etape === 'vente_nom') {
       session.data.nom_complet = texte;
       session.etape            = 'vente_tel';
@@ -275,8 +259,8 @@ bot.on('message', async msg => {
     } else if (session.etape === 'vente_qte') {
       const qte     = parseInt(texte);
       const produit = session.stock.find(p => p.id === session.data.produit_id);
-      if (isNaN(qte) || qte <= 0) return bot.sendMessage(chatId, '❌ Quantité invalide.');
-      if (qte > produit.quantite)  return bot.sendMessage(chatId, `❌ Stock insuffisant. Disponible: *${produit.quantite}*`, { parse_mode: 'Markdown' });
+      if (isNaN(qte) || qte <= 0)      return bot.sendMessage(chatId, '❌ Quantité invalide.');
+      if (qte > produit.quantite)       return bot.sendMessage(chatId, `❌ Stock insuffisant. Disponible: *${produit.quantite}*`, { parse_mode: 'Markdown' });
       session.data.quantite     = qte;
       session.data.montant_fcfa = qte * produit.prix;
       session.etape             = 'vente_type';
@@ -309,7 +293,7 @@ bot.on('message', async msg => {
         { parse_mode: 'Markdown', ...MENU }
       );
 
-    // ── Restock — quantité ────────────────────────────────────────────────────
+    // ── Restock ───────────────────────────────────────────────────────────────
     } else if (session.etape === 'restock_qte') {
       const qte = parseInt(texte);
       if (isNaN(qte) || qte <= 0) return bot.sendMessage(chatId, '❌ Quantité invalide.');
@@ -331,10 +315,8 @@ bot.on('callback_query', async query => {
   const data   = query.data;
   await bot.answerCallbackQuery(query.id);
 
-  // Vérification abonnement également sur les boutons
   await garde(chatId, async () => {
 
-    // ── Produit choisi pour une vente ─────────────────────────────────────────
     if (data.startsWith('vente_prod:')) {
       const produitId = data.split(':')[1];
       const session   = sessions[chatId];
@@ -347,7 +329,6 @@ bot.on('callback_query', async query => {
         { chat_id: chatId, message_id: msgId, parse_mode: 'Markdown' }
       );
 
-    // ── Type de vente ─────────────────────────────────────────────────────────
     } else if (data.startsWith('type_vente:')) {
       const typeVente = data.split(':')[1];
       const session   = sessions[chatId];
@@ -359,12 +340,11 @@ bot.on('callback_query', async query => {
         { chat_id: chatId, message_id: msgId, parse_mode: 'Markdown' }
       );
 
-    // ── Produit choisi pour restock ───────────────────────────────────────────
     } else if (data.startsWith('restock:')) {
-      const produitId = data.split(':')[1];
-      sessions[chatId] = { etape: 'restock_qte', data: { produitId } };
+      const produitId          = data.split(':')[1];
+      sessions[chatId]         = { etape: 'restock_qte', data: { produitId } };
       await bot.editMessageText(
-        `🔄 *Restock*\n\n🔢 Combien d'unités à ajouter au stock ?`,
+        `🔄 *Restock*\n\n🔢 Combien d'unités à ajouter ?`,
         { chat_id: chatId, message_id: msgId, parse_mode: 'Markdown' }
       );
     }
