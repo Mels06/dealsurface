@@ -1,0 +1,11 @@
+TELEGRAM_TOKEN=8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM
+
+MOHS_SCRIPT_URL=https://script.google.com/macros/s/AKfycbwaBUlIufwOOd7bIgwyfcBOyRJdocCkLNV-btjWCYGNp1DXMKTCnmQLqW1g2C9V0tV4/exec
+
+DEAL_SCRIPT_URL=https://script.google.com/a/macros/mohstechnologie.com/s/AKfycbzKwGXsCSql9Jo3Qj99wjRcfCbbXWR9KPyiLPp78bR4V6a93H6EgbymqE0m2ReU39LM/exec
+
+CLIENT_ID=MT-EPKGH
+
+WEBHOOK_URL=https://deal-surface-bot.onrender.com
+
+PORT=3000

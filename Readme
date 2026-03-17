@@ -1,0 +1,106 @@
+# 🏪 DEAL SURFACE — Bot Telegram
+
+Bot Telegram de gestion des ventes et du stock pour DEAL SURFACE.
+
+---
+
+## 📁 Structure des fichiers
+
+```
+deal-surface-bot/
+├── index.js          ← Bot Node.js principal
+├── Code.gs           ← Google Apps Script (données)
+├── package.json
+├── .env.example      ← Variables d'environnement (modèle)
+└── README.md
+```
+
+---
+
+## 🚀 Déploiement étape par étape
+
+### ÉTAPE 1 — Google Sheets
+
+1. Créez un nouveau **Google Spreadsheet**
+2. Notez son **ID** (dans l'URL : `docs.google.com/spreadsheets/d/**ID**/edit`)
+3. Créez 4 feuilles nommées exactement : `VENTES`, `STOCK`, `CLIENTS`, `PAIEMENTS`
+
+### ÉTAPE 2 — Google Apps Script
+
+1. Ouvrez [script.google.com](https://script.google.com)
+2. Cliquez **Nouveau projet**
+3. Copiez-collez le contenu de `Code.gs`
+4. Remplacez `VOTRE_SPREADSHEET_ID_ICI` par l'ID de votre Spreadsheet
+5. Cliquez sur **Exécuter** → `initStockInitial` (une seule fois, pour initialiser le stock)
+6. Allez dans **Déployer** → **Nouveau déploiement**
+   - Type : **Application Web**
+   - Exécuter en tant que : **Moi**
+   - Accès : **Tout le monde**
+7. Copiez l'**URL du déploiement** → c'est votre `DEAL_SCRIPT_URL`
+
+### ÉTAPE 3 — Bot Telegram
+
+1. Ouvrez [@BotFather](https://t.me/BotFather) sur Telegram
+2. Envoyez `/newbot`
+3. Choisissez le nom : **DEAL SURFACE**
+4. Copiez le **token** obtenu → c'est votre `TELEGRAM_TOKEN`
+
+### ÉTAPE 4 — Déploiement sur Render
+
+1. Créez un compte sur [render.com](https://render.com)
+2. **New Web Service** → connectez votre repo GitHub
+3. Configurez :
+   - **Build Command** : `npm install`
+   - **Start Command** : `node index.js`
+   - **Plan** : Free
+4. Ajoutez les **variables d'environnement** (depuis `.env.example`) :
+   ```
+   TELEGRAM_TOKEN      = votre_token
+   DEAL_SCRIPT_URL     = https://script.google.com/macros/s/.../exec
+   MOHS_SCRIPT_URL     = https://script.google.com/macros/s/AKfycbw.../exec
+   CLIENT_ID           = MT-XXXXX
+   WEBHOOK_URL         = https://votre-app.onrender.com
+   PORT                = 3000
+   ```
+5. Déployez → récupérez l'URL Render
+
+---
+
+## 💬 Commandes du bot
+
+| Commande | Description |
+|----------|-------------|
+| `start` ou `/start` | Menu principal |
+| `aide` | Guide complet |
+| `vente [nom] [tel] [produit] [qté] [prix] [comptant/troc] [imei?] [imei_troc?]` | Enregistrer une vente |
+| `stock` | Voir tout le stock |
+| `stock [produit]` | Stock d'un produit |
+| `restock [produit] [quantité]` | Réapprovisionner |
+| `nouveau produit [nom] [prix] [quantité]` | Ajouter un produit |
+| `ca aujourd'hui` | CA du jour |
+| `ca mars` | CA d'un mois |
+| `ca 01/03/2025 31/03/2025` | CA par période |
+| `stats` | Résumé global |
+
+---
+
+## 🔒 Vérification abonnement
+
+À chaque message, le bot vérifie auprès de MOHS TECHNOLOGIE que l'abonnement est actif.
+- **ACTIF** → fonctionne normalement
+- **EXPIRÉ / EN_ATTENTE** → bloque et affiche le message de contact
+
+---
+
+## 📦 Stock initial chargé automatiquement
+
+- REDMI PAD 2 256GB RAM 8GB → 10 pièces
+- HP ELITEBOOK 840 G6 i5 → 5 pièces
+- HP ELITEBOOK 840 G6 i7 → 5 pièces
+- Power bank Xiaomi 20000 → 10 pièces
+
+---
+
+## ⚠️ Alertes automatiques
+
+Le bot signale automatiquement les produits dont le stock est **< 3 pièces** lors de chaque vente et consultation.

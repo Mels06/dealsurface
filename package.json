@@ -1,13 +1,22 @@
 {
-  "name": "dealsurface",
+  "name": "deal-surface-bot",
   "version": "1.0.0",
+  "description": "Bot Telegram DEAL SURFACE - Gestion ventes & stock",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
+    "express": "^4.18.2",
     "node-telegram-bot-api": "^0.64.0",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
