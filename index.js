@@ -9,7 +9,7 @@ const MOHS_SCRIPT_URL = process.env.MOHS_SCRIPT_URL || "https://script.google.co
 const DEAL_SCRIPT_URL = process.env.DEAL_SCRIPT_URL || "https://script.google.com/a/macros/mohstechnologie.com/s/AKfycbzKwGXsCSql9Jo3Qj99wjRcfCbbXWR9KPyiLPp78bR4V6a93H6EgbymqE0m2ReU39LM/exec";
 const CLIENT_ID = process.env.CLIENT_ID || "MT-EPKGH"; // ID abonnement MOHS du client
 const PORT = process.env.PORT || 3000;
-const WEBHOOK_URL = process.env.WEBHOOK_URL; || "https://deal-surface.onrender.com";
+const WEBHOOK_URL = process.env.WEBHOOK_URL || "https://deal-surface.onrender.com";
 
 // ─── EXPRESS + BOT ─────────────────────────────────────────────────────────────
 const app = express();
