@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const axios       = require('axios');
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const BOT_TOKEN       = process.env.BOT_TOKEN;
+const BOT_TOKEN       = process.env.BOT_TOKEN || '8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM';
 const URL_VERIFICATION = 'https://script.google.com/macros/s/AKfycbxMAqw97qww0rQXce-wn4RIvD30HgZSwHV_PpVJbnNeqecwQqcgjmSHCvNOz38-92mN/exec';
 const URL_SHEET       = process.env.APPS_SCRIPT_URL;
 const SECRET          = process.env.SECRET || 'MOHS_SECRET_2024';
