@@ -6,7 +6,7 @@ const axios = require("axios");
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 const TOKEN = process.env.TELEGRAM_TOKEN || "8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM";
 const MOHS_SCRIPT_URL = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxwWGP7iqysY2dHFu-auOC0liAY2WCgndsviSFtZebs_BU0jUDf_sRr-qwE9vbf6gfb/exec";
-const DEAL_SCRIPT_URL = process.env.DEAL_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbyT4hx95hDzBdLQuAq4GX5KLABXNMOcHjKZ3YUrCp4O0Ln_9pfk7O4UavXy0hToJfRg/exec";
+const DEAL_SCRIPT_URL = process.env.DEAL_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzDa4vytqpBKQHqCGSQYNOx6dyem6T6vlM6gtI1jE-RApdbp72SDKinlDvIASXpssXG/exec";
 const CLIENT_ID = process.env.CLIENT_ID || "MT-EPKGH"; // ID abonnement MOHS du client
 const PORT = process.env.PORT || 3000;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || "https://deal-surface.onrender.com";

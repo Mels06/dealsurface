@@ -2,7 +2,7 @@ TELEGRAM_TOKEN=8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM
 
 MOHS_SCRIPT_URL=https://script.google.com/macros/s/AKfycbxwWGP7iqysY2dHFu-auOC0liAY2WCgndsviSFtZebs_BU0jUDf_sRr-qwE9vbf6gfb/exec
 
-DEAL_SCRIPT_URL=https://script.google.com/macros/s/AKfycbyT4hx95hDzBdLQuAq4GX5KLABXNMOcHjKZ3YUrCp4O0Ln_9pfk7O4UavXy0hToJfRg/exec
+DEAL_SCRIPT_URL=https://script.google.com/macros/s/AKfycbzDa4vytqpBKQHqCGSQYNOx6dyem6T6vlM6gtI1jE-RApdbp72SDKinlDvIASXpssXG/exec
 CLIENT_ID=MT-EPKGH
 
 WEBHOOK_URL=https://deal-surface-bot.onrender.com
