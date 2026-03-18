@@ -7,6 +7,7 @@ process.env.NTBA_FIX_319 = "1";
 process.env.NTBA_FIX_350 = "1";
 
 const TOKEN       = process.env.TELEGRAM_TOKEN || "8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM";
+const ALLOWED_IDS   = (process.env.ALLOWED_CHAT_IDS || "6158280587","8383314931").split(",").map(s => s.trim()).filter(Boolean);
 const MOHS_URL    = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbwaBUlIufwOOd7bIgwyfcBOyRJdocCkLNV-btjWCYGNp1DXMKTCnmQLqW1g2C9V0tV4/exec";
 const DEAL_URL    = process.env.DEAL_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxz5mFr9o75t_OClT_OfdS2U69nVZyjiBSNXvJl1Pzck8h80Bk-PsS8X1lv60Kp0m1G/exec";
 const CLIENT_ID   = process.env.CLIENT_ID || "MT-EPKGH";
