@@ -8,7 +8,7 @@ process.env.NTBA_FIX_350 = "1";
 
 const TOKEN       = process.env.TELEGRAM_TOKEN || "8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM";
 const ALLOWED_IDS = (process.env.ALLOWED_CHAT_IDS || "6158280587,8383314931").split(",").map(s => s.trim()).filter(Boolean);
-const MOHS_URL    = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxvVb44Mv_b0_xpkbTXXNJNACVo6wWug7umSUp8lXeU5hFlHKUHf2Ts4s5OF5cF1Gtw/exec";
+const MOHS_URL    = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzV_MpQNqQoYj3detOOQ7rQLAEQhAXQjqAkoWdBX43z3eVBXmUg9hTddCJmvm95hWTt/exec";
 const DEAL_URL    = process.env.DEAL_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxVJFhmE4WBmkJe6_m-8E6uDI_CM-uEyOwbkxm-j2qmKEhbJehY_xXh4NqP7QxiEmXZ/exec";
 const CLIENT_ID   = process.env.CLIENT_ID || "MT-EPKGH";
 const PORT        = process.env.PORT || 3000;
