@@ -9,7 +9,7 @@ process.env.NTBA_FIX_350 = "1";
 const TOKEN       = process.env.TELEGRAM_TOKEN || "8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM";
 const ALLOWED_IDS   = (process.env.ALLOWED_CHAT_IDS || "6158280587","8383314931").split(",").map(s => s.trim()).filter(Boolean);
 const MOHS_URL    = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxw0yPh90NKgruot9-pfTvcnlss7dXRPeh7AfuWOhA8yBtuPQGtDoMli03cwu68q-rV/exec";
-const DEAL_URL    = process.env.DEAL_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxz5mFr9o75t_OClT_OfdS2U69nVZyjiBSNXvJl1Pzck8h80Bk-PsS8X1lv60Kp0m1G/exec";
+const DEAL_URL    = process.env.DEAL_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxVJFhmE4WBmkJe6_m-8E6uDI_CM-uEyOwbkxm-j2qmKEhbJehY_xXh4NqP7QxiEmXZ/exec";
 const CLIENT_ID   = process.env.CLIENT_ID || "MT-EPKGH";
 const PORT        = process.env.PORT || 3000;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || "https://deal-surface.onrender.com";
