@@ -7,8 +7,8 @@ process.env.NTBA_FIX_319 = "1";
 process.env.NTBA_FIX_350 = "1";
 
 const TOKEN       = process.env.TELEGRAM_TOKEN || "8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM";
-const ALLOWED_IDS   = (process.env.ALLOWED_CHAT_IDS || "6158280587","8383314931").split(",").map(s => s.trim()).filter(Boolean);
-const MOHS_URL    = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxw0yPh90NKgruot9-pfTvcnlss7dXRPeh7AfuWOhA8yBtuPQGtDoMli03cwu68q-rV/exec";
+const ALLOWED_IDS = (process.env.ALLOWED_CHAT_IDS || "6158280587,8383314931").split(",").map(s => s.trim()).filter(Boolean);
+const MOHS_URL    = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxDx-lo9B_QpTPmpPbL9eoWhkPprvc8A0U0QiG7beIXro1vZxmKgomsGtKi7Jc3cdv7/exec";
 const DEAL_URL    = process.env.DEAL_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxVJFhmE4WBmkJe6_m-8E6uDI_CM-uEyOwbkxm-j2qmKEhbJehY_xXh4NqP7QxiEmXZ/exec";
 const CLIENT_ID   = process.env.CLIENT_ID || "MT-EPKGH";
 const PORT        = process.env.PORT || 3000;
@@ -55,13 +55,21 @@ function parseVente(text) {
   const tokens = tokenize(text.replace(/^vente\s+/i, "").trim());
   const ti = tokens.findIndex(t => /^(comptant|troc)$/i.test(t));
   if (ti < 3) return null;
-  return {
-    nom: tokens[0], telephone: tokens[1],
-    produit: tokens.slice(2, ti - 2).join(" ") || tokens[2],
-    quantite: parseInt(tokens[ti - 2]), prix: parseFloat(tokens[ti - 1]),
-    typeVente: tokens[ti].toLowerCase(),
-    imei: tokens[ti + 1] || "", imeiTroc: tokens[ti + 2] || "",
-  };
+
+  // Détecter le téléphone : premier token qui ressemble à un numéro
+  const telIdx = tokens.findIndex(t => /^[0-9+]{8,15}$/.test(t));
+  if (telIdx === -1) return null;
+
+  const nom       = tokens.slice(0, telIdx).join(" ");
+  const telephone = tokens[telIdx];
+  const produit   = tokens.slice(telIdx + 1, ti - 2).join(" ");
+  const quantite  = parseInt(tokens[ti - 2]);
+  const prix      = parseFloat(tokens[ti - 1]);
+  const typeVente = tokens[ti].toLowerCase();
+  const imei      = tokens[ti + 1] || "";
+  const imeiTroc  = tokens[ti + 2] || "";
+
+  return { nom, telephone, produit, quantite, prix, typeVente, imei, imeiTroc };
 }
 
 function parsePeriode(text) {
@@ -79,6 +87,12 @@ bot.on("message", async (msg) => {
   const text = (msg.text || "").trim();
   if (!text) return;
 
+  // Vérification accès
+  if (ALLOWED_IDS.length && !ALLOWED_IDS.includes(chatId.toString())) {
+    return bot.sendMessage(chatId, "⛔ Accès non autorisé.");
+  }
+
+  // Vérification abonnement
   if (!(await abonnementActif())) return bot.sendMessage(chatId, MSG_EXPIRE, { parse_mode: "Markdown" });
 
   const low = text.toLowerCase();
@@ -92,13 +106,13 @@ bot.on("message", async (msg) => {
 
     if (low === "aide" || low === "/aide") {
       return bot.sendMessage(chatId,
-        `📚 *Guide DEAL SURFACE*\n\n*Vente comptant :*\n\`vente Jean 0700000001 "Redmi Pad 2" 1 150000 comptant\`\n\n*Vente troc :*\n\`vente Paul 0600000002 "HP Elitebook i5" 1 220000 troc 354ABC 789XYZ\`\n\n*Stock :*\n\`stock\` ou \`stock redmi\`\n\n*Restock :*\n\`restock "Power bank Xiaomi" 5\`\n\n*Nouveau produit :*\n\`nouveau produit "Samsung A54" 180000 8\`\n\n*CA :*\n\`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\`\n\n*Stats :*\n\`stats\``,
+        `📚 *Guide DEAL SURFACE*\n\n*Vente comptant :*\n\`vente Jean Dupont 0700000001 "Redmi Pad 2" 1 150000 comptant\`\n\n*Vente troc :*\n\`vente Paul Koné 0600000002 "HP Elitebook i5" 1 220000 troc 354ABC 789XYZ\`\n\n*Stock :*\n\`stock\` ou \`stock redmi\`\n\n*Restock :*\n\`restock "Power bank Xiaomi" 5\`\n\n*Nouveau produit :*\n\`nouveau produit "Samsung A54" 180000 8\`\n\n*CA :*\n\`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\`\n\n*Stats :*\n\`stats\``,
         { parse_mode: "Markdown" });
     }
 
     if (low.startsWith("vente ")) {
       const d = parseVente(text);
-      if (!d || isNaN(d.quantite) || isNaN(d.prix)) return bot.sendMessage(chatId, `❌ *Format incorrect.*\n\nEx :\n\`vente Jean 0700000001 "Redmi Pad 2" 1 150000 comptant\``, { parse_mode: "Markdown" });
+      if (!d || isNaN(d.quantite) || isNaN(d.prix)) return bot.sendMessage(chatId, `❌ *Format incorrect.*\n\nEx :\n\`vente Jean Dupont 0700000001 "Redmi Pad 2" 1 150000 comptant\``, { parse_mode: "Markdown" });
       await bot.sendMessage(chatId, "⏳ Enregistrement...");
       const montant = d.quantite * d.prix;
       const res = await callDeal({ action: "enregistrer_vente", nom: d.nom, telephone: d.telephone, produit: d.produit, quantite: d.quantite, prix: d.prix, montant, typeVente: d.typeVente, imei: d.imei, imeiTroc: d.imeiTroc, date: new Date().toISOString() });
