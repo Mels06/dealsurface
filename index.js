@@ -132,7 +132,7 @@ bot.on("message", async (msg) => {
         `🏪 *Bienvenue sur le bot DEAL SURFACE !*\n\n📋 *Commandes :*\n\n` +
         `*💰 Vente 1 article :*\n\`vente [nom] [tel] [comptant/troc] [produit] [qté] [prix]\`\n\n` +
         `*💰 Vente plusieurs articles :*\n\`vente [nom] [tel] [comptant/troc] [produit] [qté] [prix] | [produit2] [qté2] [prix2]\`\n\n` +
-        `*📦 Stock*\n\`stock\` / \`stock [produit]\` / \`restock [produit] [qté]\`\n\`nouveau produit [nom] [prix] [qté]\`\n\n` +
+        `*📦 Stock*\n\`stock\` / \`stock [produit]\`\n\`restock [produit] [qté] | [produit2] [qté2]\`\n\`nouveau produit [nom] [prix] [qté]\`\n\n` +
         `*📊 CA*\n\`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\`\n\n` +
         `*📈* \`stats\` — Résumé complet\n*❓* \`aide\` — Ce menu`,
         { parse_mode: "Markdown" });
@@ -146,7 +146,7 @@ bot.on("message", async (msg) => {
         `*Vente plusieurs articles :*\n\`vente Jean Dupont 0700000001 comptant "Redmi Pad 2" 1 150000 | "Power bank Xiaomi" 2 15000\`\n\n` +
         `*Vente troc avec IMEI :*\n\`vente Paul Koné 0600000002 troc "HP Elitebook i5" 1 220000 354ABC 789XYZ\`\n\n` +
         `*Stock :*\n\`stock\` ou \`stock redmi\`\n\n` +
-        `*Restock :*\n\`restock "Power bank Xiaomi" 5\`\n\n` +
+        `*Restock 1 produit :*\n\`restock "Power bank Xiaomi" 5\`\n\n*Restock plusieurs :*\n\`restock "Power bank Xiaomi" 5 | "Redmi Pad 2" 3 | "HP Elitebook i5" 2\`\n\n` +
         `*Nouveau produit :*\n\`nouveau produit "Samsung A54" 180000 8\`\n\n` +
         `*CA :*\n\`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\`\n\n` +
         `*Stats :*\n\`stats\``,
@@ -253,14 +253,31 @@ bot.on("message", async (msg) => {
 
     // ── RESTOCK ───────────────────────────────────────────────────────────────
     if (low.startsWith("restock ")) {
-      const tokens = tokenize(text.replace(/^restock\s+/i, "").trim());
-      const quantite = parseInt(tokens[tokens.length - 1]);
-      const produit = tokens.slice(0, -1).join(" ");
-      if (!produit || isNaN(quantite) || quantite <= 0) return bot.sendMessage(chatId, `❌ *Format :* \`restock [produit] [quantité]\`\nEx : \`restock "Redmi Pad 2" 5\``, { parse_mode: "Markdown" });
-      await bot.sendMessage(chatId, "⏳ Mise à jour du stock...");
-      const res = await callDeal({ action: "restock", produit, quantite, date: new Date().toISOString() });
-      if (!res.success) return bot.sendMessage(chatId, `❌ Erreur : ${res.error || "Inconnu"}`, { parse_mode: "Markdown" });
-      return bot.sendMessage(chatId, `✅ *Stock mis à jour !*\n\n📱 *Produit :* ${produit}\n➕ *Ajouté :* ${quantite} pièce(s)\n📦 *Nouveau stock :* ${res.nouveauStock ?? "—"} pièce(s)`, { parse_mode: "Markdown" });
+      const body = text.replace(/^restock\s+/i, "").trim();
+      const articlesRaw = body.split("|").map(s => s.trim()).filter(Boolean);
+      const articles = [];
+      for (const artRaw of articlesRaw) {
+        const tokens = tokenize(artRaw);
+        const quantite = parseInt(tokens[tokens.length - 1]);
+        const produit = tokens.slice(0, -1).join(" ");
+        if (!produit || isNaN(quantite) || quantite <= 0) {
+          return bot.sendMessage(chatId, `❌ *Format :* \`restock [produit] [qté] | [produit2] [qté2]\`\nEx : \`restock "Redmi Pad 2" 5 | "Power bank Xiaomi" 3\``, { parse_mode: "Markdown" });
+        }
+        articles.push({ produit, quantite });
+      }
+      await bot.sendMessage(chatId, `⏳ Mise à jour de ${articles.length} produit(s)...`);
+      let reply = `✅ *Stock mis à jour !*\n\n`;
+      const erreurs = [];
+      for (const art of articles) {
+        const res = await callDeal({ action: "restock", produit: art.produit, quantite: art.quantite, date: new Date().toISOString() });
+        if (!res.success) {
+          erreurs.push(`• ${art.produit} : ${res.error || "Erreur"}`);
+        } else {
+          reply += `📦 *${art.produit}*\n   ➕ Ajouté : ${art.quantite} pièce(s)  |  Nouveau stock : *${res.nouveauStock ?? "—"}*\n\n`;
+        }
+      }
+      if (erreurs.length) reply += `❌ *Erreurs :*\n` + erreurs.join("\n");
+      return bot.sendMessage(chatId, reply, { parse_mode: "Markdown" });
     }
 
     // ── NOUVEAU PRODUIT ───────────────────────────────────────────────────────
