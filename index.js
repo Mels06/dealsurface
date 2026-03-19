@@ -8,7 +8,7 @@ process.env.NTBA_FIX_350 = "1";
 
 const TOKEN       = process.env.TELEGRAM_TOKEN || "8636927691:AAEQhJ9qB4_1bD0YjSEjlG79IBqJ6iu4gPM";
 const ALLOWED_IDS = (process.env.ALLOWED_CHAT_IDS || "6158280587,8383314931").split(",").map(s => s.trim()).filter(Boolean);
-const MOHS_URL    = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzV_MpQNqQoYj3detOOQ7rQLAEQhAXQjqAkoWdBX43z3eVBXmUg9hTddCJmvm95hWTt/exec";
+const MOHS_URL    = process.env.MOHS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbw3FuDailGU7lF_ZaB795AOlV4w0wQFsUJU2e4llRYcbCny-zM0jeK-wp5NaHkoKFub/exec";
 const DEAL_URL    = process.env.DEAL_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxVJFhmE4WBmkJe6_m-8E6uDI_CM-uEyOwbkxm-j2qmKEhbJehY_xXh4NqP7QxiEmXZ/exec";
 const CLIENT_ID   = process.env.CLIENT_ID || "MT-EPKGH";
 const PORT        = process.env.PORT || 3000;
@@ -51,25 +51,54 @@ function tokenize(str) {
   return out;
 }
 
-function parseVente(text) {
-  const tokens = tokenize(text.replace(/^vente\s+/i, "").trim());
-  const ti = tokens.findIndex(t => /^(comptant|troc)$/i.test(t));
-  if (ti < 3) return null;
+// ─── PARSE VENTE MULTI-ARTICLES ───────────────────────────────────────────────
+// Format : vente [nom] [tel] [comptant/troc] [produit] [qté] [prix] | [produit2] [qté2] [prix2] | ...
+// IMEI optionnel après le prix : produit qté prix imei imei_troc
+function parseVenteMulti(text) {
+  const body = text.replace(/^vente\s+/i, "").trim();
 
-  // Détecter le téléphone : premier token qui ressemble à un numéro
+  // Détecter le téléphone
+  const tokens = tokenize(body);
   const telIdx = tokens.findIndex(t => /^[0-9+]{8,15}$/.test(t));
   if (telIdx === -1) return null;
 
   const nom       = tokens.slice(0, telIdx).join(" ");
   const telephone = tokens[telIdx];
-  const produit   = tokens.slice(telIdx + 1, ti - 2).join(" ");
-  const quantite  = parseInt(tokens[ti - 2]);
-  const prix      = parseFloat(tokens[ti - 1]);
-  const typeVente = tokens[ti].toLowerCase();
-  const imei      = tokens[ti + 1] || "";
-  const imeiTroc  = tokens[ti + 2] || "";
 
-  return { nom, telephone, produit, quantite, prix, typeVente, imei, imeiTroc };
+  // Type de vente juste après le téléphone
+  const typeVente = tokens[telIdx + 1];
+  if (!typeVente || !/^(comptant|troc)$/i.test(typeVente)) return null;
+
+  // Tout ce qui reste après typeVente = articles séparés par |
+  const resteRaw = tokens.slice(telIdx + 2).join(" ");
+  const articlesRaw = resteRaw.split("|").map(s => s.trim()).filter(Boolean);
+
+  if (articlesRaw.length === 0) return null;
+
+  const articles = [];
+  for (const artRaw of articlesRaw) {
+    const t = tokenize(artRaw);
+    // Format : [produit] [quantité] [prix] [imei?] [imei_troc?]
+    // Le produit peut être multi-mots, quantité et prix sont des nombres
+    // On cherche depuis la fin : prix = dernier nombre, quantité = avant-dernier nombre
+    let prixIdx = -1, qteIdx = -1;
+    for (let i = t.length - 1; i >= 0; i--) {
+      if (!isNaN(parseFloat(t[i])) && prixIdx === -1) { prixIdx = i; continue; }
+      if (!isNaN(parseInt(t[i])) && prixIdx !== -1 && qteIdx === -1) { qteIdx = i; break; }
+    }
+    if (prixIdx === -1 || qteIdx === -1) return null;
+
+    const produit  = t.slice(0, qteIdx).join(" ");
+    const quantite = parseInt(t[qteIdx]);
+    const prix     = parseFloat(t[prixIdx]);
+    const imei     = t[prixIdx + 1] || "";
+    const imeiTroc = t[prixIdx + 2] || "";
+
+    if (!produit || isNaN(quantite) || isNaN(prix)) return null;
+    articles.push({ produit, quantite, prix, imei, imeiTroc });
+  }
+
+  return { nom, telephone, typeVente: typeVente.toLowerCase(), articles };
 }
 
 function parsePeriode(text) {
@@ -87,44 +116,111 @@ bot.on("message", async (msg) => {
   const text = (msg.text || "").trim();
   if (!text) return;
 
-  // Vérification accès
   if (ALLOWED_IDS.length && !ALLOWED_IDS.includes(chatId.toString())) {
     return bot.sendMessage(chatId, "⛔ Accès non autorisé.");
   }
 
-  // Vérification abonnement
   if (!(await abonnementActif())) return bot.sendMessage(chatId, MSG_EXPIRE, { parse_mode: "Markdown" });
 
   const low = text.toLowerCase();
 
   try {
+
+    // ── /start ────────────────────────────────────────────────────────────────
     if (low === "/start" || low === "start") {
       return bot.sendMessage(chatId,
-        `🏪 *Bienvenue sur le bot DEAL SURFACE !*\n\n📋 *Commandes :*\n\n*💰 Ventes*\n\`vente [nom] [tel] [produit] [qté] [prix] [comptant/troc] [imei?] [imei_troc?]\`\n\n*📦 Stock*\n\`stock\` — Voir tout le stock\n\`stock [produit]\` — Stock d'un produit\n\`restock [produit] [quantité]\` — Réapprovisionner\n\`nouveau produit [nom] [prix] [quantité]\` — Nouveau produit\n\n*📊 CA*\n\`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\`\n\n*📈 Stats*\n\`stats\` — Résumé complet\n\n*❓* \`aide\` — Ce menu`,
+        `🏪 *Bienvenue sur le bot DEAL SURFACE !*\n\n📋 *Commandes :*\n\n` +
+        `*💰 Vente 1 article :*\n\`vente [nom] [tel] [comptant/troc] [produit] [qté] [prix]\`\n\n` +
+        `*💰 Vente plusieurs articles :*\n\`vente [nom] [tel] [comptant/troc] [produit] [qté] [prix] | [produit2] [qté2] [prix2]\`\n\n` +
+        `*📦 Stock*\n\`stock\` / \`stock [produit]\` / \`restock [produit] [qté]\`\n\`nouveau produit [nom] [prix] [qté]\`\n\n` +
+        `*📊 CA*\n\`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\`\n\n` +
+        `*📈* \`stats\` — Résumé complet\n*❓* \`aide\` — Ce menu`,
         { parse_mode: "Markdown" });
     }
 
+    // ── AIDE ──────────────────────────────────────────────────────────────────
     if (low === "aide" || low === "/aide") {
       return bot.sendMessage(chatId,
-        `📚 *Guide DEAL SURFACE*\n\n*Vente comptant :*\n\`vente Jean Dupont 0700000001 "Redmi Pad 2" 1 150000 comptant\`\n\n*Vente troc :*\n\`vente Paul Koné 0600000002 "HP Elitebook i5" 1 220000 troc 354ABC 789XYZ\`\n\n*Stock :*\n\`stock\` ou \`stock redmi\`\n\n*Restock :*\n\`restock "Power bank Xiaomi" 5\`\n\n*Nouveau produit :*\n\`nouveau produit "Samsung A54" 180000 8\`\n\n*CA :*\n\`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\`\n\n*Stats :*\n\`stats\``,
+        `📚 *Guide DEAL SURFACE*\n\n` +
+        `*Vente 1 article :*\n\`vente Jean Dupont 0700000001 comptant "Redmi Pad 2" 1 150000\`\n\n` +
+        `*Vente plusieurs articles :*\n\`vente Jean Dupont 0700000001 comptant "Redmi Pad 2" 1 150000 | "Power bank Xiaomi" 2 15000\`\n\n` +
+        `*Vente troc avec IMEI :*\n\`vente Paul Koné 0600000002 troc "HP Elitebook i5" 1 220000 354ABC 789XYZ\`\n\n` +
+        `*Stock :*\n\`stock\` ou \`stock redmi\`\n\n` +
+        `*Restock :*\n\`restock "Power bank Xiaomi" 5\`\n\n` +
+        `*Nouveau produit :*\n\`nouveau produit "Samsung A54" 180000 8\`\n\n` +
+        `*CA :*\n\`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\`\n\n` +
+        `*Stats :*\n\`stats\``,
         { parse_mode: "Markdown" });
     }
 
+    // ── VENTE ─────────────────────────────────────────────────────────────────
     if (low.startsWith("vente ")) {
-      const d = parseVente(text);
-      if (!d || isNaN(d.quantite) || isNaN(d.prix)) return bot.sendMessage(chatId, `❌ *Format incorrect.*\n\nEx :\n\`vente Jean Dupont 0700000001 "Redmi Pad 2" 1 150000 comptant\``, { parse_mode: "Markdown" });
-      await bot.sendMessage(chatId, "⏳ Enregistrement...");
-      const montant = d.quantite * d.prix;
-      const res = await callDeal({ action: "enregistrer_vente", nom: d.nom, telephone: d.telephone, produit: d.produit, quantite: d.quantite, prix: d.prix, montant, typeVente: d.typeVente, imei: d.imei, imeiTroc: d.imeiTroc, date: new Date().toISOString() });
-      if (!res.success) return bot.sendMessage(chatId, `❌ *Erreur :* ${res.error || "Inconnu"}`, { parse_mode: "Markdown" });
-      let r = `✅ *Vente enregistrée !*\n\n👤 *Client :* ${d.nom}\n📞 *Tél :* ${d.telephone}\n📱 *Produit :* ${d.produit}\n🔢 *Quantité :* ${d.quantite}\n💰 *Prix unitaire :* ${fcfa(d.prix)}\n💵 *Total :* ${fcfa(montant)}\n💳 *Type :* ${d.typeVente.toUpperCase()}\n`;
-      if (d.imei) r += `📋 *IMEI :* \`${d.imei}\`\n`;
-      if (d.imeiTroc) r += `🔁 *IMEI troc :* \`${d.imeiTroc}\`\n`;
-      r += `📅 *Date :* ${today()}\n`;
-      if (res.stockRestant !== undefined) { r += `\n📦 *Stock restant :* ${res.stockRestant} pièce(s)`; if (res.stockRestant < 3) r += `\n⚠️ *Stock faible !*`; }
+      const parsed = parseVenteMulti(text);
+      if (!parsed) {
+        return bot.sendMessage(chatId,
+          `❌ *Format incorrect.*\n\n` +
+          `*1 article :*\n\`vente Jean Dupont 0700000001 comptant "Redmi Pad 2" 1 150000\`\n\n` +
+          `*Plusieurs articles :*\n\`vente Jean Dupont 0700000001 comptant "Redmi Pad 2" 1 150000 | "Power bank" 2 15000\``,
+          { parse_mode: "Markdown" });
+      }
+
+      await bot.sendMessage(chatId, `⏳ Enregistrement de ${parsed.articles.length} article(s)...`);
+
+      let totalGlobal = 0;
+      let replyArticles = "";
+      let erreurs = [];
+      let stockAlertes = [];
+
+      for (const art of parsed.articles) {
+        const montant = art.quantite * art.prix;
+        totalGlobal += montant;
+
+        const res = await callDeal({
+          action: "enregistrer_vente",
+          nom: parsed.nom,
+          telephone: parsed.telephone,
+          produit: art.produit,
+          quantite: art.quantite,
+          prix: art.prix,
+          montant,
+          typeVente: parsed.typeVente,
+          imei: art.imei,
+          imeiTroc: art.imeiTroc,
+          date: new Date().toISOString(),
+        });
+
+        if (!res.success) {
+          erreurs.push(`• ${art.produit} : ${res.error || "Erreur"}`);
+        } else {
+          replyArticles += `   ✅ *${art.produit}* × ${art.quantite} = ${fcfa(montant)}\n`;
+          if (art.imei) replyArticles += `      📋 IMEI : \`${art.imei}\`\n`;
+          if (art.imeiTroc) replyArticles += `      🔁 IMEI troc : \`${art.imeiTroc}\`\n`;
+          if (res.stockRestant !== undefined && res.stockRestant < 3) {
+            stockAlertes.push(`${art.produit} (${res.stockRestant} restant)`);
+          }
+        }
+      }
+
+      let r =
+        `✅ *Vente enregistrée !*\n\n` +
+        `👤 *Client :* ${parsed.nom}\n` +
+        `📞 *Tél :* ${parsed.telephone}\n` +
+        `💳 *Type :* ${parsed.typeVente.toUpperCase()}\n` +
+        `📅 *Date :* ${today()}\n\n` +
+        `🛒 *Articles :*\n${replyArticles}\n` +
+        `💵 *Total général :* ${fcfa(totalGlobal)}`;
+
+      if (erreurs.length > 0) {
+        r += `\n\n❌ *Erreurs :*\n` + erreurs.join("\n");
+      }
+      if (stockAlertes.length > 0) {
+        r += `\n\n⚠️ *Stock faible :*\n` + stockAlertes.map(s => `• ${s}`).join("\n");
+      }
+
       return bot.sendMessage(chatId, r, { parse_mode: "Markdown" });
     }
 
+    // ── STOCK GLOBAL ──────────────────────────────────────────────────────────
     if (low === "stock") {
       await bot.sendMessage(chatId, "⏳ Récupération du stock...");
       const res = await callDeal({ action: "voir_stock" });
@@ -142,6 +238,7 @@ bot.on("message", async (msg) => {
       return bot.sendMessage(chatId, r, { parse_mode: "Markdown" });
     }
 
+    // ── STOCK PRODUIT ─────────────────────────────────────────────────────────
     if (low.startsWith("stock ")) {
       const produit = text.replace(/^stock\s+/i, "").trim();
       await bot.sendMessage(chatId, `⏳ Recherche de "${produit}"...`);
@@ -154,6 +251,7 @@ bot.on("message", async (msg) => {
       return bot.sendMessage(chatId, r, { parse_mode: "Markdown" });
     }
 
+    // ── RESTOCK ───────────────────────────────────────────────────────────────
     if (low.startsWith("restock ")) {
       const tokens = tokenize(text.replace(/^restock\s+/i, "").trim());
       const quantite = parseInt(tokens[tokens.length - 1]);
@@ -165,6 +263,7 @@ bot.on("message", async (msg) => {
       return bot.sendMessage(chatId, `✅ *Stock mis à jour !*\n\n📱 *Produit :* ${produit}\n➕ *Ajouté :* ${quantite} pièce(s)\n📦 *Nouveau stock :* ${res.nouveauStock ?? "—"} pièce(s)`, { parse_mode: "Markdown" });
     }
 
+    // ── NOUVEAU PRODUIT ───────────────────────────────────────────────────────
     if (low.startsWith("nouveau produit ")) {
       const tokens = tokenize(text.replace(/^nouveau produit\s+/i, "").trim());
       const quantite = parseInt(tokens[tokens.length - 1]);
@@ -177,6 +276,7 @@ bot.on("message", async (msg) => {
       return bot.sendMessage(chatId, `✅ *Produit ajouté !*\n\n📱 *Nom :* ${nom}\n💰 *Prix :* ${fcfa(prix)}\n📦 *Stock initial :* ${quantite} pièce(s)`, { parse_mode: "Markdown" });
     }
 
+    // ── CA ────────────────────────────────────────────────────────────────────
     if (low.startsWith("ca ")) {
       const periode = parsePeriode(text);
       if (!periode) return bot.sendMessage(chatId, `❌ *Format incorrect.*\nEx : \`ca aujourd'hui\` / \`ca mars\` / \`ca 01/03/2025 31/03/2025\``, { parse_mode: "Markdown" });
@@ -189,6 +289,7 @@ bot.on("message", async (msg) => {
       return bot.sendMessage(chatId, r, { parse_mode: "Markdown" });
     }
 
+    // ── STATS ─────────────────────────────────────────────────────────────────
     if (low === "stats" || low === "/stats") {
       await bot.sendMessage(chatId, "⏳ Calcul des statistiques...");
       const res = await callDeal({ action: "stats_globales" });
@@ -199,6 +300,7 @@ bot.on("message", async (msg) => {
       return bot.sendMessage(chatId, r, { parse_mode: "Markdown" });
     }
 
+    // ── INCONNU ───────────────────────────────────────────────────────────────
     return bot.sendMessage(chatId, `❓ Commande non reconnue.\nTapez \`aide\` pour voir les commandes.`, { parse_mode: "Markdown" });
 
   } catch (err) {
